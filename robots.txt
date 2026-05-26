@@ -1,0 +1,19 @@
+User-Agent: *
+Disallow: /page50644759.html
+Disallow: /error
+Disallow: /page90369146.html
+Disallow: /agreement
+Disallow: /page90369386.html
+Disallow: /cookie-files
+Disallow: /tilda/form*
+Disallow: /tilda/rec*
+Disallow: /tilda/click*
+Disallow: /tilda/scroll*
+Disallow: /tilda/popup*
+Disallow: /tilda/cart*
+Disallow: /tilda/product*
+Disallow: /tilda/event*
+Disallow:
+
+
+Sitemap: https://stroycashdoma.ru/sitemap.xml

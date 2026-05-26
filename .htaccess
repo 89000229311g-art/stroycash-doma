@@ -1,0 +1,33 @@
+ErrorDocument 403 /page50644759.html
+ErrorDocument 404 /page50644759.html
+
+DirectoryIndex page50020253.html
+
+RewriteEngine On
+
+RewriteCond %{HTTP:X-Forwarded-Proto} =http
+RewriteRule ^(.*)$ https://stroycashdoma\.ru/$1 [R=301,L]
+
+RewriteCond %{HTTP:X-Forwarded-Proto} =https
+RewriteCond %{HTTP_HOST} ^www\.stroycashdoma.ru [NC]
+RewriteRule ^(.*)$ https://stroycashdoma\.ru/$1 [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} /robots.txt
+RewriteCond "%{DOCUMENT_ROOT}/robots_%{HTTP_HOST}.txt" -f
+RewriteRule ^(.*)$ robots_%{HTTP_HOST}.txt [NC,L]
+RewriteRule ^policy$ page50645151.html [NC]
+RewriteRule ^policy/$ page50645151.html [NC]
+
+RewriteRule ^ychastok$ page52048525.html [NC]
+RewriteRule ^ychastok/$ page52048525.html [NC]
+
+RewriteRule ^error$ page50644759.html [NC]
+RewriteRule ^error/$ page50644759.html [NC]
+
+RewriteRule ^agreement$ page90369146.html [NC]
+RewriteRule ^agreement/$ page90369146.html [NC]
+
+RewriteRule ^cookie-files$ page90369386.html [NC]
+RewriteRule ^cookie-files/$ page90369386.html [NC]
+
+
