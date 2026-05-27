@@ -1,0 +1,14 @@
+services:
+  stroycash-site:
+    image: nginx:alpine
+    container_name: stroycash-site
+    restart: unless-stopped
+    volumes:
+      - /var/www/doma.stroycash.ru:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stroycash.rule=Host(`doma.stroycash.ru`)"
+      - "traefik.http.routers.stroycash.entrypoints=websecure"
+      - "traefik.http.routers.stroycash.tls=true"
+      - "traefik.http.routers.stroycash.tls.certresolver=myresolver"
+      - "traefik.http.services.stroycash.loadbalancer.server.port=80"
