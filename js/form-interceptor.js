@@ -24,13 +24,14 @@
   }
 
   // ── Layer 3: override window.tildaForm.send ───────────────────────────────
-  var pollCount = 0;
-  var poll = setInterval(function () {
-    if (++pollCount > 100) { clearInterval(poll); return; }
-    if (!window.tildaForm || typeof window.tildaForm.send !== "function") return;
-    clearInterval(poll);
+  function installSendOverride() {
+    if (!window.tildaForm || typeof window.tildaForm.send !== "function") return false;
 
     window.tildaForm.send = function (form, btnSubmit, formType, formKey) {
+      // tilda-forms passes form as Element; tilda-zero-forms does too
+      if (form && !(form instanceof Element) && form[0]) form = form[0];
+      if (btnSubmit && !(btnSubmit instanceof Element) && btnSubmit[0]) btnSubmit = btnSubmit[0];
+
       var data = new FormData(form);
 
       if (btnSubmit) {
@@ -45,7 +46,6 @@
       xhr.onreadystatechange = function () {
         if (xhr.readyState !== 4) return;
 
-        // Always reset button
         if (btnSubmit) {
           btnSubmit.classList.remove("t-btn_sending");
           btnSubmit.tildaSendingStatus = "0";
@@ -55,13 +55,11 @@
         try { resp = JSON.parse(xhr.responseText); } catch (e) {}
 
         if (xhr.status >= 200 && xhr.status < 300 && resp.answer) {
-          // Use Tilda's own success flow — handles T835, popups, redirects, etc.
           var successUrl = form.getAttribute("data-success-url") || "";
           var successCb  = form.getAttribute("data-success-callback") || "";
           if (window.tildaForm.successEnd) {
             window.tildaForm.successEnd(form, successUrl, successCb);
           } else {
-            // Fallback: show success box directly
             var successBox = form.querySelector(".t-form__successbox, .js-successbox");
             var inputsBox  = form.querySelector(".t-form__inputsbox");
             if (successBox) successBox.style.display = "block";
@@ -69,19 +67,43 @@
           }
         } else {
           var errText = (resp && resp.error) || "Ошибка отправки. Позвоните: +7 (343) 242-42-43";
-          var errBoxes = form.querySelectorAll(
-            ".t-form__errorbox-wrapper, .t-form__error, .js-errorbox, .js-errorbox-all"
-          );
-          errBoxes.forEach(function (el) {
-            el.innerHTML = errText;
-            el.style.display = "block";
-          });
+          // T396 zero forms use popup errors
+          var isPopupError = form.getAttribute("data-error-popup") === "y";
+          if (isPopupError && window.tildaForm.showErrorInPopup) {
+            window.tildaForm.showErrorInPopup(form, [errText]);
+          } else {
+            var errBoxes = form.querySelectorAll(
+              ".t-form__errorbox-wrapper, .t-form__error, .js-errorbox, .js-errorbox-all"
+            );
+            errBoxes.forEach(function (el) {
+              el.innerHTML = errText;
+              el.style.display = "block";
+            });
+          }
         }
       };
 
       xhr.send(data);
       return false;
     };
+
+    return true;
+  }
+
+  // Poll until tildaForm.send is available, then override it.
+  // Re-check periodically in case an async script resets it.
+  var pollCount = 0;
+  var overrideInstalled = false;
+  var poll = setInterval(function () {
+    if (++pollCount > 200) { clearInterval(poll); return; }
+    var installed = installSendOverride();
+    if (installed && !overrideInstalled) {
+      overrideInstalled = true;
+      // Keep polling briefly to catch any late re-assignment by async scripts
+    }
+    if (overrideInstalled && pollCount > 50) {
+      clearInterval(poll);
+    }
   }, 100);
 
 }());
