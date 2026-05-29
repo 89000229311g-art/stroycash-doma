@@ -23,24 +23,20 @@
     };
   }
 
-  // ── Layer 3: override window.tildaForm.send (most reliable) ──────────────
-  // Poll until Tilda initialises its form object, then wrap send().
+  // ── Layer 3: override window.tildaForm.send ───────────────────────────────
   var pollCount = 0;
   var poll = setInterval(function () {
-    pollCount++;
-    if (pollCount > 100) { clearInterval(poll); return; } // give up after 10 s
-
+    if (++pollCount > 100) { clearInterval(poll); return; }
     if (!window.tildaForm || typeof window.tildaForm.send !== "function") return;
     clearInterval(poll);
 
-    var originalSend = window.tildaForm.send;
-
     window.tildaForm.send = function (form, btnSubmit, formType, formKey) {
-      // Gather form data
       var data = new FormData(form);
 
-      // Reset button state & show loading
-      if (btnSubmit) btnSubmit.classList.add("t-btn_sending");
+      if (btnSubmit) {
+        btnSubmit.classList.add("t-btn_sending");
+        btnSubmit.tildaSendingStatus = "1";
+      }
 
       var xhr = new XMLHttpRequest();
       nativeOpen.call(xhr, "POST", HANDLER_URL, true);
@@ -49,37 +45,42 @@
       xhr.onreadystatechange = function () {
         if (xhr.readyState !== 4) return;
 
-        if (btnSubmit) btnSubmit.classList.remove("t-btn_sending");
+        // Always reset button
+        if (btnSubmit) {
+          btnSubmit.classList.remove("t-btn_sending");
+          btnSubmit.tildaSendingStatus = "0";
+        }
 
         var resp = {};
         try { resp = JSON.parse(xhr.responseText); } catch (e) {}
 
         if (xhr.status >= 200 && xhr.status < 300 && resp.answer) {
-          // Show Tilda success box
-          var successBox = form.querySelector(".js-successbox");
-          var inputsBox  = form.querySelector(".t-form__inputsbox");
-          if (successBox) {
-            successBox.innerHTML = resp.answer;
-            successBox.style.display = "block";
-          }
-          if (inputsBox) inputsBox.style.display = "none";
-
-          // Fire Tilda's own success callback if configured
-          var cb = form.getAttribute("data-success-callback");
-          if (cb && typeof window[cb] === "function") {
-            window[cb](form, { answer: resp.answer });
+          // Use Tilda's own success flow — handles T835, popups, redirects, etc.
+          var successUrl = form.getAttribute("data-success-url") || "";
+          var successCb  = form.getAttribute("data-success-callback") || "";
+          if (window.tildaForm.successEnd) {
+            window.tildaForm.successEnd(form, successUrl, successCb);
+          } else {
+            // Fallback: show success box directly
+            var successBox = form.querySelector(".t-form__successbox, .js-successbox");
+            var inputsBox  = form.querySelector(".t-form__inputsbox");
+            if (successBox) successBox.style.display = "block";
+            if (inputsBox)  inputsBox.style.display  = "none";
           }
         } else {
-          // Show error inside the form's error box
           var errText = (resp && resp.error) || "Ошибка отправки. Позвоните: +7 (343) 242-42-43";
-          var errBox  = form.querySelector(".t-form__error") ||
-                        form.querySelector(".js-errorbox");
-          if (errBox) { errBox.innerHTML = errText; errBox.style.display = "block"; }
+          var errBoxes = form.querySelectorAll(
+            ".t-form__errorbox-wrapper, .t-form__error, .js-errorbox, .js-errorbox-all"
+          );
+          errBoxes.forEach(function (el) {
+            el.innerHTML = errText;
+            el.style.display = "block";
+          });
         }
       };
 
       xhr.send(data);
-      return false; // prevent Tilda's own submission
+      return false;
     };
   }, 100);
 
