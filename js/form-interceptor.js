@@ -1,109 +1,121 @@
 (function () {
+  "use strict";
+
   var HANDLER_URL = "/form_handler.php";
-  var RE = /forms\.tilda(cdn|api)\.[a-z]+\/procces/;
 
-  // ── Layer 1: XHR interceptor ──────────────────────────────────────────────
-  var nativeOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function (method, url) {
-    if (typeof url === "string" && RE.test(url)) {
-      url = HANDLER_URL;
-    }
-    return nativeOpen.call(this, method, url, arguments[2], arguments[3], arguments[4]);
-  };
+  /* ── Попап "Спасибо" ─────────────────────────────────────────────────────── */
+  function showThankYou() {
+    var overlay = document.createElement("div");
+    overlay.id = "sc-thankyou";
+    overlay.style.cssText = [
+      "position:fixed;top:0;left:0;right:0;bottom:0",
+      "z-index:2147483647",
+      "background:rgba(255,255,255,0.96)",
+      "display:flex;align-items:center;justify-content:center",
+      "animation:scFadeIn .25s ease"
+    ].join(";");
 
-  // ── Layer 2: fetch interceptor ────────────────────────────────────────────
-  if (typeof window.fetch === "function") {
-    var nativeFetch = window.fetch;
-    window.fetch = function (input, init) {
-      var url = typeof input === "string" ? input : (input && input.url);
-      if (url && RE.test(url)) {
-        input = typeof input === "string" ? HANDLER_URL : new Request(HANDLER_URL, input);
-      }
-      return nativeFetch.call(this, input, init);
-    };
+    overlay.innerHTML =
+      '<style>' +
+      '@keyframes scFadeIn{from{opacity:0}to{opacity:1}}' +
+      '#sc-thankyou-box{text-align:center;padding:48px 32px;max-width:420px;background:#fff;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.12)}' +
+      '#sc-thankyou-box .sc-check{font-size:56px;line-height:1;margin-bottom:16px;color:#2ab26e}' +
+      '#sc-thankyou-box h2{margin:0 0 10px;font-size:24px;font-weight:700;color:#111}' +
+      '#sc-thankyou-box p{margin:0 0 28px;font-size:16px;color:#555;line-height:1.5}' +
+      '#sc-thankyou-btn{display:inline-block;padding:13px 36px;background:#e63000;color:#fff;border:none;border-radius:4px;font-size:16px;cursor:pointer;font-family:inherit}' +
+      '#sc-thankyou-btn:hover{background:#cc2a00}' +
+      '</style>' +
+      '<div id="sc-thankyou-box">' +
+        '<div class="sc-check">✓</div>' +
+        '<h2>Спасибо!</h2>' +
+        '<p>Ваша заявка принята.<br>Мы свяжемся с вами в ближайшее время.</p>' +
+        '<button id="sc-thankyou-btn">Закрыть</button>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    var btn = overlay.querySelector("#sc-thankyou-btn");
+    btn.onclick = function () { overlay.remove(); };
+    overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
   }
 
-  // ── Layer 3: override window.tildaForm.send ───────────────────────────────
-  function installSendOverride() {
-    if (!window.tildaForm || typeof window.tildaForm.send !== "function") return false;
+  /* ── Отправка формы ──────────────────────────────────────────────────────── */
+  function submitForm(form, submitBtn) {
+    if (submitBtn) {
+      submitBtn.classList.add("t-btn_sending");
+      submitBtn.disabled = true;
+    }
 
-    window.tildaForm.send = function (form, btnSubmit, formType, formKey) {
-      // tilda-forms passes form as Element; tilda-zero-forms does too
-      if (form && !(form instanceof Element) && form[0]) form = form[0];
-      if (btnSubmit && !(btnSubmit instanceof Element) && btnSubmit[0]) btnSubmit = btnSubmit[0];
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", HANDLER_URL, true);
+    xhr.setRequestHeader("Accept", "application/json");
 
-      var data = new FormData(form);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
 
-      if (btnSubmit) {
-        btnSubmit.classList.add("t-btn_sending");
-        btnSubmit.tildaSendingStatus = "1";
+      if (submitBtn) {
+        submitBtn.classList.remove("t-btn_sending");
+        submitBtn.disabled = false;
       }
 
-      var xhr = new XMLHttpRequest();
-      nativeOpen.call(xhr, "POST", HANDLER_URL, true);
-      xhr.setRequestHeader("Accept", "application/json, text/plain, */*");
+      var data = {};
+      try { data = JSON.parse(xhr.responseText); } catch (e) {}
 
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState !== 4) return;
+      if (data.answer) {
+        showThankYou();
+      } else {
+        alert(data.error || "Ошибка отправки. Позвоните: +7 (343) 242-42-43");
+      }
+    };
 
-        if (btnSubmit) {
-          btnSubmit.classList.remove("t-btn_sending");
-          btnSubmit.tildaSendingStatus = "0";
-        }
+    xhr.send(new FormData(form));
+  }
 
-        var resp = {};
-        try { resp = JSON.parse(xhr.responseText); } catch (e) {}
+  /* ── Перехват window.tildaForm.send ─────────────────────────────────────── */
+  /* Tilda вызывает tildaForm.send после своей валидации. Заменяем на нашу     */
+  /* отправку — никаких обращений к серверам Tilda.                             */
+  function hookTildaSend() {
+    if (!window.tildaForm || typeof window.tildaForm.send !== "function") return false;
 
-        if (xhr.status >= 200 && xhr.status < 300 && resp.answer) {
-          var successUrl = form.getAttribute("data-success-url") || "";
-          var successCb  = form.getAttribute("data-success-callback") || "";
-          if (window.tildaForm.successEnd) {
-            window.tildaForm.successEnd(form, successUrl, successCb);
-          } else {
-            var successBox = form.querySelector(".t-form__successbox, .js-successbox");
-            var inputsBox  = form.querySelector(".t-form__inputsbox");
-            if (successBox) successBox.style.display = "block";
-            if (inputsBox)  inputsBox.style.display  = "none";
-          }
-        } else {
-          var errText = (resp && resp.error) || "Ошибка отправки. Позвоните: +7 (343) 242-42-43";
-          // T396 zero forms use popup errors
-          var isPopupError = form.getAttribute("data-error-popup") === "y";
-          if (isPopupError && window.tildaForm.showErrorInPopup) {
-            window.tildaForm.showErrorInPopup(form, [errText]);
-          } else {
-            var errBoxes = form.querySelectorAll(
-              ".t-form__errorbox-wrapper, .t-form__error, .js-errorbox, .js-errorbox-all"
-            );
-            errBoxes.forEach(function (el) {
-              el.innerHTML = errText;
-              el.style.display = "block";
-            });
-          }
-        }
-      };
-
-      xhr.send(data);
+    window.tildaForm.send = function (form, btn) {
+      /* Tilda может передать jQuery-обёртку вместо DOM-элемента */
+      if (form && !(form instanceof Element) && form[0]) form = form[0];
+      if (btn  && !(btn  instanceof Element) && btn[0])  btn  = btn[0];
+      submitForm(form, btn);
       return false;
     };
 
     return true;
   }
 
-  // Poll until tildaForm.send is available, then override it.
-  // Re-check periodically in case an async script resets it.
-  var pollCount = 0;
-  var overrideInstalled = false;
-  var poll = setInterval(function () {
-    if (++pollCount > 200) { clearInterval(poll); return; }
-    var installed = installSendOverride();
-    if (installed && !overrideInstalled) {
-      overrideInstalled = true;
-      // Keep polling briefly to catch any late re-assignment by async scripts
+  /* Ждём загрузки tilda-forms.js (он async) и ставим перехват.              */
+  /* Проверяем 200 раз × 50 мс = 10 секунд.                                  */
+  var attempts = 0;
+  var poller = setInterval(function () {
+    if (++attempts > 200) { clearInterval(poller); return; }
+    if (hookTildaSend()) { clearInterval(poller); }
+  }, 50);
+
+  /* ── Запасной перехват: XHR на уровне прототипа ─────────────────────────── */
+  /* Если tildaForm.send не был перехвачен вовремя, ловим XHR напрямую.       */
+  var _open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    if (typeof url === "string" && /tilda(cdn|api).*\/procces/i.test(url)) {
+      url = HANDLER_URL;
     }
-    if (overrideInstalled && pollCount > 50) {
-      clearInterval(poll);
-    }
-  }, 100);
+    return _open.apply(this, arguments);
+  };
+
+  /* ── Запасной перехват: fetch ────────────────────────────────────────────── */
+  if (typeof window.fetch === "function") {
+    var _fetch = window.fetch;
+    window.fetch = function (input, init) {
+      var url = typeof input === "string" ? input : (input && input.url) || "";
+      if (/tilda(cdn|api).*\/procces/i.test(url)) {
+        input = typeof input === "string" ? HANDLER_URL : new Request(HANDLER_URL, input);
+      }
+      return _fetch.call(this, input, init);
+    };
+  }
 
 }());
