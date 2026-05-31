@@ -16,4 +16,4 @@ Disallow: /tilda/event*
 Disallow:
 
 
-Sitemap: https://stroycashdoma.ru/sitemap.xml
+Sitemap: https://doma.stroycash.ru/sitemap.xml

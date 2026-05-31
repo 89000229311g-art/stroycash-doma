@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/www/doma.stroycash.ru:/usr/share/nginx/html:ro
+      - /root/stroycash-doma/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.stroycash.rule=Host(`doma.stroycash.ru`)"

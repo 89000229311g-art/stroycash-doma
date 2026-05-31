@@ -1,0 +1,52 @@
+name: Deploy to doma.stroycash.ru
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: Create remote dirs
+        run: |
+          sshpass -p '${{ secrets.SERVER_PASS }}' ssh \
+            -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22 \
+            root@185.154.52.237 \
+            "mkdir -p /var/www/doma.stroycash.ru /root/stroycash-doma"
+
+      - name: Deploy HTML/CSS/JS files
+        run: |
+          sshpass -p '${{ secrets.SERVER_PASS }}' rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='seo_fix.py' \
+            --exclude='*.tar.gz' \
+            --exclude='images/' \
+            . \
+            root@185.154.52.237:/var/www/doma.stroycash.ru/
+
+      - name: Deploy nginx.conf
+        run: |
+          sshpass -p '${{ secrets.SERVER_PASS }}' scp \
+            -o StrictHostKeyChecking=no -o ConnectTimeout=30 -P 22 \
+            nginx.conf root@185.154.52.237:/root/stroycash-doma/nginx.conf
+
+      - name: Deploy docker-compose.yml
+        run: |
+          sshpass -p '${{ secrets.SERVER_PASS }}' scp \
+            -o StrictHostKeyChecking=no -o ConnectTimeout=30 -P 22 \
+            docker-compose.yml root@185.154.52.237:/root/stroycash-doma/docker-compose.yml
+
+      - name: Reload nginx
+        run: |
+          sshpass -p '${{ secrets.SERVER_PASS }}' ssh \
+            -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22 \
+            root@185.154.52.237 \
+            "docker exec stroycash-site nginx -s reload 2>/dev/null && echo 'nginx reloaded' || echo 'nginx reload skipped'"
