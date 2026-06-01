@@ -28,7 +28,6 @@ jobs:
             --exclude='.github/' \
             --exclude='seo_fix.py' \
             --exclude='*.tar.gz' \
-            --exclude='images/' \
             . \
             root@185.154.52.237:/var/www/doma.stroycash.ru/
 
@@ -44,9 +43,9 @@ jobs:
             -o StrictHostKeyChecking=no -o ConnectTimeout=30 -P 22 \
             docker-compose.yml root@185.154.52.237:/root/stroycash-doma/docker-compose.yml
 
-      - name: Reload nginx
+      - name: Start/restart container
         run: |
           sshpass -p '${{ secrets.SERVER_PASS }}' ssh \
             -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22 \
             root@185.154.52.237 \
-            "docker exec stroycash-site nginx -s reload 2>/dev/null && echo 'nginx reloaded' || echo 'nginx reload skipped'"
+            "docker network create web 2>/dev/null || true; cd /root/stroycash-doma && docker compose up -d --force-recreate && echo 'container started'"

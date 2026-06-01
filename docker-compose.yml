@@ -6,6 +6,8 @@ services:
     volumes:
       - /var/www/doma.stroycash.ru:/usr/share/nginx/html:ro
       - /root/stroycash-doma/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - web
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.stroycash.rule=Host(`doma.stroycash.ru`)"
@@ -13,3 +15,7 @@ services:
       - "traefik.http.routers.stroycash.tls=true"
       - "traefik.http.routers.stroycash.tls.certresolver=myresolver"
       - "traefik.http.services.stroycash.loadbalancer.server.port=80"
+
+networks:
+  web:
+    external: true
