@@ -1,19 +1,39 @@
 User-Agent: *
-Disallow: /page50644759.html
 Disallow: /error
+Disallow: /page50644759.html
 Disallow: /page90369146.html
-Disallow: /agreement
 Disallow: /page90369386.html
-Disallow: /cookie-files
-Disallow: /tilda/form*
-Disallow: /tilda/rec*
-Disallow: /tilda/click*
-Disallow: /tilda/scroll*
-Disallow: /tilda/popup*
-Disallow: /tilda/cart*
-Disallow: /tilda/product*
-Disallow: /tilda/event*
-Disallow:
+Allow: /
 
+# AI search crawlers — explicitly allowed
+User-Agent: GPTBot
+Allow: /
+
+User-Agent: ChatGPT-User
+Allow: /
+
+User-Agent: OAI-SearchBot
+Allow: /
+
+User-Agent: anthropic-ai
+Allow: /
+
+User-Agent: ClaudeBot
+Allow: /
+
+User-Agent: PerplexityBot
+Allow: /
+
+User-Agent: YouBot
+Allow: /
+
+User-Agent: CCBot
+Allow: /
+
+User-Agent: Googlebot
+Allow: /
+
+User-Agent: YandexBot
+Allow: /
 
 Sitemap: https://doma.stroycash.ru/sitemap.xml
