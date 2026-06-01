@@ -1,6 +1,6 @@
 services:
   stroycash-site:
-    image: nginx:alpine
+    image: fholzer/nginx-brotli:latest
     container_name: stroycash-site
     restart: unless-stopped
     volumes:
